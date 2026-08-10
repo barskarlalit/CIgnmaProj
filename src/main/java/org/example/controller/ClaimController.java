@@ -13,7 +13,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/claims")
 public class ClaimController {
-//testto controller
     private final ClaimService claimService;
 
     public ClaimController(ClaimService claimService) {
