@@ -14,25 +14,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Get OIDC claims
-        env:
-          OIDC_URL: ${{ env.ACTIONS_ID_TOKEN_REQUEST_URL }}
-          OIDC_TOKEN: ${{ env.ACTIONS_ID_TOKEN_REQUEST_TOKEN }}
+      - name: Get OIDC token claims
+        shell: bash
         run: |
-          TOKEN=$(curl -sS \
-            -H "Authorization: Bearer $OIDC_TOKEN" \
-            "$OIDC_URL&audience=sts.amazonaws.com" | jq -r '.value')
+          TOKEN_JSON=$(curl -sS \
+            -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com")
 
-          PAYLOAD=$(echo "$TOKEN" | cut -d '.' -f2)
+          TOKEN=$(echo "$TOKEN_JSON" | jq -r '.value')
 
-          PAYLOAD="$PAYLOAD" python3 -c '
-          import base64, json, os
-          p=os.environ["PAYLOAD"]
-          p += "=" * (-len(p) % 4)
-          d=json.loads(base64.urlsafe_b64decode(p))
-          print("issuer:", d.get("iss"))
-          print("audience:", d.get("aud"))
-          print("subject:", d.get("sub"))
-          print("repository:", d.get("repository"))
-          print("ref:", d.get("ref"))
-          '
+          echo "$TOKEN" | cut -d '.' -f2 | base64 -d 2>/dev/null | jq '{
+            iss,
+            aud,
+            sub,
+            repository,
+            ref
+          }'
