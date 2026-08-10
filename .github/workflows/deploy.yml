@@ -8,6 +8,14 @@ on:
 permissions:
   id-token: write
   contents: read
+              - name: Configure AWS credentials
+              uses: aws-actions/configure-aws-credentials@v6
+              with:
+                role-to-assume: arn:aws:iam::005311908947:role/GitHubActions-CignmaProj
+                aws-region: ap-south-1
+
+              - name: Verify AWS identity
+                run: aws sts get-caller-identity
 
 jobs:
   test:
@@ -30,3 +38,12 @@ jobs:
             repository,
             ref
           }'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::005311908947:role/GitHubActions-CignmaProj
+          aws-region: ap-south-1
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
