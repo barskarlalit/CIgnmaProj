@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 @RestController
 @RequestMapping("/claims")
+
+all methods to test
 public class ClaimController {
 
     private final ClaimService claimService;
