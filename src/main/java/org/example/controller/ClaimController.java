@@ -13,6 +13,8 @@ import java.util.List;
 @RestController
 @RequestMapping("/claims")
 public class ClaimController {
+
+    //test
     private final ClaimService claimService;
 
     public ClaimController(ClaimService claimService) {
