@@ -1,4 +1,4 @@
-name: Build and Push to ECR
+name: Deploy CignmaProj to ECS
 
 on:
   push:
@@ -11,13 +11,19 @@ permissions:
 
 env:
   AWS_REGION: ap-south-1
+  AWS_ACCOUNT_ID: "005311908947"
   ECR_REPOSITORY: cignmaproj
+  ECS_CLUSTER: cignmaproj-prod
+  ECS_SERVICE: cignmaproj-service
+  ECS_TASK_DEFINITION: cignmaproj-prod
+  ECS_CONTAINER_NAME: cignmaproj
 
 jobs:
-  build-and-push:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout
         uses: actions/checkout@v5
 
@@ -32,15 +38,63 @@ jobs:
 
       - name: Build Docker image
         run: |
-          docker build -t $ECR_REPOSITORY:${{ github.sha }} .
+          docker build \
+            -t $ECR_REPOSITORY:${{ github.sha }} \
+            .
 
       - name: Tag Docker image
         run: |
           docker tag \
             $ECR_REPOSITORY:${{ github.sha }} \
-            005311908947.dkr.ecr.ap-south-1.amazonaws.com/$ECR_REPOSITORY:${{ github.sha }}
+            $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:${{ github.sha }}
 
       - name: Push Docker image
         run: |
           docker push \
-            005311908947.dkr.ecr.ap-south-1.amazonaws.com/$ECR_REPOSITORY:${{ github.sha }}
+            $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:${{ github.sha }}
+
+      - name: Download current ECS task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition $ECS_TASK_DEFINITION \
+            --query taskDefinition \
+            --output json > task-definition.json
+
+      - name: Remove unnecessary task definition fields
+        run: |
+          jq 'del(
+            .taskDefinitionArn,
+            .revision,
+            .status,
+            .requiresAttributes,
+            .compatibilities,
+            .registeredAt,
+            .registeredBy
+          )' task-definition.json > task-definition-clean.json
+
+      - name: Update container image
+        run: |
+          jq \
+            --arg IMAGE "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPOSITORY:${{ github.sha }}" \
+            --arg NAME "$ECS_CONTAINER_NAME" \
+            '(.containerDefinitions[] | select(.name == $NAME) | .image) = $IMAGE' \
+            task-definition-clean.json > task-definition-new.json
+
+      - name: Register new ECS task definition
+        run: |
+          aws ecs register-task-definition \
+            --cli-input-json file://task-definition-new.json
+
+      - name: Update ECS service
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE \
+            --task-definition $ECS_TASK_DEFINITION \
+            --force-new-deployment
+
+      - name: Wait for ECS deployment
+        run: |
+          aws ecs wait services-stable \
+            --cluster $ECS_CLUSTER \
+            --services $ECS_SERVICE
