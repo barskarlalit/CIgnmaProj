@@ -14,7 +14,6 @@ import java.util.List;
 @RequestMapping("/claims")
 public class ClaimController {
 
-    //test
     private final ClaimService claimService;
 
     public ClaimController(ClaimService claimService) {
